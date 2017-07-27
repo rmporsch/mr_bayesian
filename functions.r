@@ -88,28 +88,20 @@ simulate.complex <- function (n, p, effectmat, dd, phenoeffect, wished.effect=0.
 
   t1  <-  1*(dd%*%efca[[1]]) + rnorm(n, 0, sqrt(1-wished.effect))
   t2  <-  1*(dd%*%efca[[2]]) + phenoeffect[2,1]*t1 + rnorm(n, 0, sqrt(1-wished.effect))
-  t3  <-  1*(dd%*%efca[[3]]) + phenoeffect[3,1]*t1 + phenoeffect[3,1]*t2 + rnorm(n, 0, sqrt(1-wished.effect))
+  t3  <-  1*(dd%*%efca[[3]]) + phenoeffect[3,1]*t1 + phenoeffect[3,1]*t2 +
+  rnorm(n, 0, sqrt(1-wished.effect))
 
 
   gwas1 <- gwas(t1, dd)
   gwas2 <- gwas(t2, dd)
   gwas3 <- gwas(t3, dd)
 
-  covar.gwas1 <- gwas(t1, dd, cbind(t2, t3))
-  covar.gwas2 <- gwas(t2, dd, cbind(t1, t3))
-  covar.gwas3 <- gwas(t3, dd, cbind(t1, t2))
-
   prs1 <- prs(dd, gwas1, 0.01)
   prs2 <- prs(dd, gwas2, 0.01)
   prs3 <- prs(dd, gwas3, 0.01)
 
-  covar.prs1 <- prs(dd, covar.gwas1, 0.01)
-  covar.prs2 <- prs(dd, covar.gwas2, 0.01)
-  covar.prs3 <- prs(dd, covar.gwas3, 0.01)
-
   output <- data.frame(t1, t2, t3,
-                       prs1, prs2, prs3,
-                       covar.prs1, covar.prs2, covar.prs3)
+                       prs1, prs2, prs3)
   return(output)
 }
 
