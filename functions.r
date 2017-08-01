@@ -115,6 +115,18 @@ qq.gwas <- function (p) {
 
 make.arcs <- function (pheno.effectmat) {
   base <- matrix(c(paste0('prs',1:3), paste0('t', 1:3)), ncol=2)
+  causal.path <- which(pheno.effectmat!=0, T)
+  causal.path <- matrix(c(colnames(pheno.effectmat)[causal.path[,2]],
+                        rownames(pheno.effectmat)[causal.path[,1]]), ncol=2)
+  return(rbind(base, causal.path))
+}
 
-  
+generate.random.causes <- function(effect.size) {
+  effect.size <- c(0, 0.3, 0.7, 0.3,0)
+  pheno.effectmat <- matrix(0, nrow=3, ncol=3)
+  pheno.effectmat[lower.tri(pheno.effectmat)] <- sample(effect.size, 3)
+  diag(pheno.effectmat) <- NA
+  colnames(pheno.effectmat) <- paste0('t', 1:3)
+  rownames(pheno.effectmat) <- paste0('t', 1:3)
+  return(pheno.effectmat)
 }

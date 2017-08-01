@@ -1,5 +1,4 @@
 #!/usr/bin/env Rscript
-
 source("/home/tshmak/WORK/myRpackages/General/R/TimStartup.R")
 source('functions.r')
 library(dplyr)
@@ -25,21 +24,21 @@ genetic.effectmat <- matrix(c(0.01, 0.000, 0.000,
                               0.000, 0.01, 0.000,
                               0.000, 0.000, 0.01), nrow=3, ncol=3, byrow=T)
 
-pheno.effectmat <- matrix(c(NA, 0.000, 0.000,
-                            0.7, NA, 0.000,
-                            0.0, 0.7, NA), nrow=3, ncol=3, byrow=T)
+effect <- c(rep(0, 6), runif(20,0,0.8))
+library(tidyverse)
+for (item in 1:1000) {
+  pheno.effectmat <- generate.random.causes(effect)
+  report.arcs <- data.frame(pheno.effectmat, 'to'=rownames(pheno.effectmat))
+  report.arcs <- gather(report.arcs, 'from', 'value', -to) %>%
+    filter(value!=0) %>%
+    select(from, to, value)
+  arcs <- make.arcs(pheno.effectmat)
+  arcs <- as.data.frame(arcs)
+  names(arcs) <- c('from', 'to')
+  arcs <- merge(arcs, report.arcs, all.x=T )
 
-
-out <- simulate.complex(n, p, effectmat, dd, 0.2)
-
-cor(out)
-write.table(out, 'fixed_simulation_large_effect.txt', row.names=F, quote=F)
-
-out <- list()
-for (item in 1:20) {
-  out[[item]] <- simulate.complex(n, p, effectmat, dd, 0.2)
+  out <- simulate.complex(n, p, effectmat, dd, pheno.effectmat)
+  write.table(out, paste0('simulation/simData_', item, '.txt'), row.names=F, quote=F)
+  write.table(arcs, paste0('simulation/simSolution_', item, '.txt'), row.names=F, quote=F)
 }
-
-out.cor <- lapply(out, cor)
-apply(simplify2array(out.cor), 1:2, mean)
-apply(simplify2array(out.cor), 1:2, sd)
+zip('simulations.zip', 'simulation')
