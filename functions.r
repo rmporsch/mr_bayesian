@@ -250,3 +250,41 @@ check.mr.performance <- function (k) {
   }
   return(out)
 }
+
+bayesian_estiamtion <- function (dataSim, truemodel) {
+
+  dataSim <- dataSim %>%
+  mutate_if(is.integer, funs(as.numeric))
+
+  snps <- names(dataSim)[grepl('snp', names(dataSim))]
+  black.snps.pheno <- lapply(paste("t", 1:3, sep=""), function(k) t(rbind(k, snps)))
+  black.snps.pheno  <- do.call('rbind', black.snps.pheno)
+
+  sim <- hc(dataSim, blacklist=black.snps.pheno)
+  paths <- lapply(sim$nodes, function(k) k$children)
+  df.causal.con  <- data.frame(from = rep(names(paths), sapply(paths, length)),
+                               to = unlist(paths))
+
+
+  names(truemodel)  <- c("from", "to")
+  filter.truth <- apply(truemodel, 1,
+                        function(k) ifelse(any(grepl('snp', k)), FALSE, TRUE))
+
+  truemodel <- truemodel[filter.truth,]
+
+
+  filter.snps <- apply(df.causal.con, 1,
+                       function(k) ifelse(any(grepl('snp', k)), FALSE, TRUE))
+
+  df.causal.con <- df.causal.con[filter.snps,]
+
+  overestimation <- suppressMessages(anti_join(df.causal.con, truemodel))
+  underestimation <- suppressMessages(anti_join(truemodel, df.causal.con))
+  correct <- suppressMessages(inner_join(df.causal.con, truemodel))
+
+  out <- data.frame("Correct"=nrow(correct), 
+                    "UnderEstimation"=nrow(underestimation),
+                    "OverEstimation"=nrow(overestimation),
+                    "TrueModelTotal"=nrow(truemodel))
+  return(out)
+}
