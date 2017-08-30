@@ -1,5 +1,6 @@
 source('functions.r')
 library(bnlearn)
+library(dplyr)
 folder <- 'simulation/'
 
 out <- list()
@@ -11,8 +12,6 @@ for (i in 1:200) {
 
 results <- do.call('rbind', out)
 
-
-mean(results$correct / results$truemodeltotal, na.rm=T)
+mean(results$Correct == results$TrueModelTotal, na.rm=T)
 mean(results$OverEstimation >0)
 mean(results$Correct == results$TrueModelTotal & (results$OverEstimation == 0)) 
-

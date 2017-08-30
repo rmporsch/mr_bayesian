@@ -27,7 +27,7 @@ rownames(genetic.effectmat) <- paste0('t',1:3)
 colnames(genetic.effectmat) <- paste0('t',1:3)
 
 effect <- c(rep(0, 6), runif(20,0,0.8))
-effect <- c(rep(0, 6), rep(0.4, 4))
+effect <- c(rep(0, 6), rep(0.2, 2))
 library(tidyverse)
 #for (item in 1:100) {
 #  pheno.effectmat <- generate.random.causes(effect)
@@ -47,7 +47,6 @@ library(tidyverse)
 #zip('simulations_prs.zip', 'simulation')
 #system('rm -r simulation/')
 
-
 dir.create('simulation')
 for (item in 1:200) {
   pheno.effectmat <- generate.random.causes(effect)
@@ -60,11 +59,10 @@ for (item in 1:200) {
   names(arcs) <- c('from', 'to')
   arcs <- merge(arcs, report.arcs, all.x=T )
 
-  out <- simulate.causal.snp(n, p, genetic.effectmat, dd, pheno.effectmat, 0.8, bim, dogwas=T)
+  out <- simulate.causal.snp(n, p, genetic.effectmat, dd, pheno.effectmat, 0.2, bim, dogwas=T)
   write.table(out[[1]], paste0('simulation/simData_', item, '.txt'), row.names=F, quote=F)
   write.table(out[[2]], paste0('simulation/simGWAS_', item, '.txt'), row.names=F, quote=F)
   write.table(arcs, paste0('simulation/simSolution_', item, '.txt'), row.names=F, quote=F)
 }
 #zip('simulations_snp.zip', 'simulation')
 #system('rm -r simulation/')
-define.causal(p, genetic.effectmat)

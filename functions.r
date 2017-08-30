@@ -1,3 +1,5 @@
+library(dplyr)
+library(bnlearn)
 make.lists <- function (mat) {
   traits <- mat[,1]
   prs <- mat[,2]
@@ -79,37 +81,6 @@ define.causal <- function (p, effectDist) {
   return(l)
 }
 
-simulate.causal.prs <- function (n, p, effectmat, dd, phenoeffect, wished.effect=0.6) {
-  ca <- define.causal(p, effectmat)
-  ef1 <-rep(0, p)
-  ef2 <-rep(0, p) 
-  ef3 <-rep(0, p) 
-  efca <- list(ef1, ef2, ef3)
-  for (item in 1:length(efca)) {
-    efca[[item]][ca[[item]]] <- 1 
-    efca[[item]][ca[[item]]] <- efca[[item]][ca[[item]]] /
-    (sum(efca[[item]][ca[[item]]])/wished.effect)
-  }
-
-  t1  <-  1*(dd%*%efca[[1]]) + rnorm(n, 0, sqrt(1-wished.effect))
-  t2  <-  1*(dd%*%efca[[2]]) + phenoeffect[2,1]*t1 + rnorm(n, 0, sqrt(1-wished.effect))
-  t3  <-  1*(dd%*%efca[[3]]) + phenoeffect[3,1]*t1 + phenoeffect[3,1]*t2 +
-  rnorm(n, 0, sqrt(1-wished.effect))
-
-
-  gwas1 <- gwas(t1, dd)
-  gwas2 <- gwas(t2, dd)
-  gwas3 <- gwas(t3, dd)
-
-  prs1 <- prs(dd, gwas1, 0.01)
-  prs2 <- prs(dd, gwas2, 0.01)
-  prs3 <- prs(dd, gwas3, 0.01)
-
-  output <- data.frame(t1, t2, t3,
-                       prs1, prs2, prs3)
-  return(output)
-}
-
 qq.gwas <- function (p) {
 
   nn <- -log10(1:length(p)/length(p))
@@ -136,36 +107,57 @@ generate.random.causes <- function(effect.size) {
 }
 
 simulate.causal.snp <- function (n, p, effectmat, dd, phenoeffect, wished.effect=0.6, bim, dogwas=F) {
-  effectmat <- genetic.effectmat
-  phenoeffect <- pheno.effectmat
   ca <- define.causal(p, effectmat)
   ef1 <-rep(0, p)
   ef2 <-rep(0, p) 
   ef3 <-rep(0, p) 
+
   efca <- list(ef1, ef2, ef3)
+  item <- 1
   for (item in 1:length(efca)) {
     efca[[item]][ca[[item]]] <- 1 
-    efca[[item]][ca[[item]]] <- efca[[item]][ca[[item]]] /
-    (sum(efca[[item]][ca[[item]]])/wished.effect)
   }
 
-  t1  <-  1*(dd%*%efca[[1]]) + rnorm(n, 0, sqrt(1-wished.effect))
-  t2  <-  1*(dd%*%efca[[2]]) + phenoeffect[2,1]*t1 + rnorm(n, 0, sqrt(1-wished.effect))
-  t3  <-  1*(dd%*%efca[[3]]) + phenoeffect[3,1]*t1 + phenoeffect[3,1]*t2 +
-  rnorm(n, 0, sqrt(1-wished.effect))
+
+  t1  <-  sqrt(wished.effect)*scale(dd%*%efca[[1]]) +
+      sqrt(1-wished.effect)*rnorm(n, 0, sqrt(1))
+
+  full.variance.current <- wished.effect + phenoeffect[2,1]
+  if(full.variance.current >1) {
+    stop(paste0("Genetic and Env. Variance is > 1 (T2) ", full.variance.current))
+  }
+  error.loading <- 1-full.variance.current
+
+  t2  <-  sqrt(wished.effect)*scale(dd%*%efca[[2]]) +
+  sqrt(phenoeffect[2,1])*t1 +
+  sqrt(error.loading)*rnorm(n, 0, sqrt(1))
+
+  corr <- cor(t1, t2)
+  full.variance.current <- wished.effect +
+  2*sqrt(phenoeffect[2,1])*sqrt(phenoeffect[3,1])*corr +
+  phenoeffect[3,1] + phenoeffect[2, 1]
+  if(full.variance.current >1) {
+    stop(paste0("Genetic and Env. Variance is > 1 (T3) ", full.variance.current," ", corr))
+  }
+  error.loading <- 1-full.variance.current
+
+  t3  <-  sqrt(wished.effect)*scale(dd%*%efca[[3]]) +
+  sqrt(phenoeffect[2,1])*t1 +
+  sqrt(phenoeffect[3,1])*t2 +
+  sqrt(c(error.loading))*rnorm(n, 0, sqrt(1))
 
 
   if(dogwas==T) {
-  gwas1 <- gwas(t1, dd, bim, label="T1")
-  gwas2 <- gwas(t2, dd, bim, label="T2")
-  gwas3 <- gwas(t3, dd, bim, label="T3")
-  gwas1$causal <- 0
-  gwas1$causal[ca[[1]]] <- 1
-  gwas2$causal <- 0
-  gwas2$causal[ca[[2]]] <- 1
-  gwas3$causal <- 0
-  gwas3$causal[ca[[3]]] <- 1
-  gwas_results <- rbind(gwas1, gwas2, gwas3)
+    gwas1 <- gwas(t1, dd, bim, label="T1")
+    gwas2 <- gwas(t2, dd, bim, label="T2")
+    gwas3 <- gwas(t3, dd, bim, label="T3")
+    gwas1$causal <- 0
+    gwas1$causal[ca[[1]]] <- 1
+    gwas2$causal <- 0
+    gwas2$causal[ca[[2]]] <- 1
+    gwas3$causal <- 0
+    gwas3$causal[ca[[3]]] <- 1
+    gwas_results <- rbind(gwas1, gwas2, gwas3)
   } else {
     gwas_results <- NULL
   }
@@ -213,7 +205,7 @@ test.mr <- function (sim) {
 }
 
 compare.outcomes <- function (real, estimated, causal='causal') {
-  real <- arcs[!is.na(arcs$value),c("from", "to")]
+
   estimated <- outcome[outcome[[causal]], c("from", "to")]
   real <- mutate_each(real, funs(tolower))
   estimated <- mutate_each(estimated, funs(tolower))
@@ -233,8 +225,8 @@ compare.outcomes <- function (real, estimated, causal='causal') {
   }
 
   if (nrow(real)>0 & nrow(estimated) > 0) {
-    not.estimated <- anti_join(real, estimated)
-    overestimated <- anti_join(estimated, real)
+    not.estimated <- suppressMessages(anti_join(real, estimated))
+    overestimated <- suppressMessages(anti_join(estimated, real))
   }
   return(list("not.estimated"=not.estimated, "overestimated"=overestimated)) 
 }
@@ -254,7 +246,7 @@ check.mr.performance <- function (k) {
 bayesian_estiamtion <- function (dataSim, truemodel) {
 
   dataSim <- dataSim %>%
-  mutate_if(is.integer, funs(as.numeric))
+  mutate_if(is.integer, funs(as.factor))
 
   snps <- names(dataSim)[grepl('snp', names(dataSim))]
   black.snps.pheno <- lapply(paste("t", 1:3, sep=""), function(k) t(rbind(k, snps)))
@@ -280,7 +272,7 @@ bayesian_estiamtion <- function (dataSim, truemodel) {
 
   overestimation <- suppressMessages(anti_join(df.causal.con, truemodel))
   underestimation <- suppressMessages(anti_join(truemodel, df.causal.con))
-  correct <- suppressMessages(inner_join(df.causal.con, truemodel))
+  correct <- suppressWarnings(suppressMessages(inner_join(df.causal.con, truemodel)))
 
   out <- data.frame("Correct"=nrow(correct), 
                     "UnderEstimation"=nrow(underestimation),
