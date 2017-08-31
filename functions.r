@@ -1,5 +1,3 @@
-library(dplyr)
-library(bnlearn)
 make.lists <- function (mat) {
   traits <- mat[,1]
   prs <- mat[,2]
@@ -279,4 +277,44 @@ bayesian_estiamtion <- function (dataSim, truemodel) {
                     "OverEstimation"=nrow(overestimation),
                     "TrueModelTotal"=nrow(truemodel))
   return(out)
+}
+
+model.arc.to.frame <- function(k) {
+  mat <- matrix(0, nrow=3, ncol=3)
+  diag(mat) <- NA
+  rownames(mat) <- paste0('t',1:3)
+  colnames(mat) <- paste0('t',1:3)
+  if(nrow(k)<1) return(mat)
+
+  for (r in 1:nrow(k)) {
+    mat[as.character(k[r,2]), as.character(k[r,1])] <- 1
+  }
+  return(mat)
+}
+
+get.model.number <- function (input.matrix) {
+  if(is.data.frame(input.matrix)) {
+    input.matrix <- model.arc.to.frame(input.matrix)
+  }
+  input.matrix[input.matrix > 0] <- 1
+  combinations <- expand.grid(0:1, 0:1, 0:1)
+  combinations <- as.matrix(combinations)
+  out <- list()
+  mat <- matrix(NA, nrow=3, ncol=3)
+  mat[upper.tri(mat, diag=F)] <- 0
+
+  for (item in 1:nrow(combinations)) {
+    temp <- mat
+    temp[lower.tri(temp, diag=F)] <- as.vector(combinations[item,])
+    out[[item]] <- temp 
+  }
+
+  for (item in 1:length(out)) {
+    compare <- (input.matrix==out[[item]])
+    compare <- compare[!is.na(compare)]
+    if (all(compare)) {
+      return(item) 
+      break;
+    }
+  }
 }
