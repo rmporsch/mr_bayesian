@@ -3,6 +3,7 @@ library(bnlearn)
 library(dplyr)
 folder <- 'simulation/'
 
+i <- 1
 out <- list()
 for (i in 1:200) {
   temp <- read.table(paste0(folder, 'simData_', i, '.txt'), head=T)
@@ -12,6 +13,25 @@ for (i in 1:200) {
 
 results <- do.call('rbind', out)
 
-mean(results$Correct == results$TrueModelTotal, na.rm=T)
-mean(results$OverEstimation >0)
-mean(results$Correct == results$TrueModelTotal & (results$OverEstimation == 0)) 
+
+head(results)
+results %>%
+group_by(ModelNumber) %>%
+summarise("Identified Connections"= mean(Correct == TrueModelTotal, na.rm=T),
+          "OverEstimation" = mean(OverEstimation >0),
+          "AllCorrect" = mean(Correct == TrueModelTotal & (OverEstimation == 0)),
+          "Number of Simulations" = n()) 
+
+
+combinations <- expand.grid(0:1, 0:1, 0:1)
+combinations <- as.matrix(combinations)
+out <- list()
+mat <- matrix(NA, nrow=3, ncol=3)
+mat[upper.tri(mat, diag=F)] <- 0
+
+for (item in 1:nrow(combinations)) {
+  temp <- mat
+  temp[lower.tri(temp, diag=F)] <- as.vector(combinations[item,])
+  out[[item]] <- temp 
+}
+
